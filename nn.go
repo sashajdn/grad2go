@@ -1,3 +1,3 @@
 package grad2go
 
-type NeuralNetwork struct {}
+type NeuralNetwork struct{}

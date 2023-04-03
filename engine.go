@@ -7,6 +7,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+var (
+	// Since these values are used often; we might as well initialize rather than
+	// having to create every function call.
+	zero = decimal.NewFromFloat(0.0)
+	one  = decimal.NewFromFloat(1.0)
+)
+
 type Operation int32
 
 const (
@@ -15,10 +22,11 @@ const (
 	OperationSub
 	OperationMul
 	OperationDiv
-	OperationExp
 	OperationPow
+	OperationReLu
 )
 
+// String implements the stringer interface.
 func (o Operation) String() string {
 	switch o {
 	case OperationNOOP:
@@ -31,10 +39,10 @@ func (o Operation) String() string {
 		return "mul"
 	case OperationDiv:
 		return "div"
-	case OperationExp:
-		return "exp"
 	case OperationPow:
 		return "pow"
+	case OperationReLu:
+		return "relu"
 	default:
 		return "unknown"
 	}
@@ -43,12 +51,54 @@ func (o Operation) String() string {
 var noop = func() {}
 
 func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *Value {
+	var (
+		previousSet []*Value
+		previousMap = make(map[*Value]struct{}, len(children))
+	)
+
+	for _, child := range children {
+		if _, ok := previousMap[child]; ok {
+			continue
+		}
+
+		previousMap[child] = struct{}{}
+		previousSet = append(previousSet, child)
+	}
+
 	return &Value{
 		value:     value,
 		operation: operation,
-		previous:  children,
+		previous:  previousSet,
 		backward:  noop,
 		grad:      decimal.NewFromFloat(0),
+	}
+}
+
+func (v *Value) Backward() {
+	var (
+		s    = map[*Value]struct{}{}
+		topo []*Value
+	)
+
+	var collect func(node *Value)
+	collect = func(node *Value) {
+		if _, ok := s[node]; ok {
+			return
+		}
+
+		s[v] = struct{}{}
+		for _, c := range node.previous {
+			collect(c)
+		}
+
+		topo = append(topo, v)
+	}
+	collect(v)
+
+	v.grad = one
+	for i := len(topo) - 1; i >= 0; i-- {
+		node := topo[i]
+		node.backward()
 	}
 }
 
@@ -71,10 +121,10 @@ func (v *Value) String() string {
 		op = "-"
 	case OperationDiv:
 		op = "/"
-	case OperationExp:
-		op = "exp"
 	case OperationPow:
 		op = "**"
+	case OperationReLu:
+		op = "relu"
 	}
 
 	va, _ := v.value.Float64()
@@ -126,9 +176,31 @@ func (v *Value) Div(other *Value) *Value {
 	return v.Mul(inverseOther)
 }
 
-func (v *Value) Exp(other *Value) *Value {
-	return nil
+func (v *Value) Pow(x decimal.Decimal) *Value {
+	out := NewValue(v.value.Pow(x), OperationPow, v)
+
+	v.backward = func() {
+		dvdout := x.Mul(v.value.Pow(x.Sub(one)))
+		v.grad = v.grad.Add(dvdout.Mul(out.grad))
+	}
+
+	return out
 }
 
-func (v *Value) Pow(other *Value) *Value {
+func (v *Value) ReLu() *Value {
+	out := NewValue(max(zero, v.value), OperationPow, v)
+
+	v.backward = func() {
+		binary := func() decimal.Decimal {
+			if out.value.GreaterThan(zero) {
+				return one
+			}
+
+			return zero
+		}()
+
+		v.grad = v.grad.Add(binary.Mul(out.grad))
+	}
+
+	return out
 }

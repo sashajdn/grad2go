@@ -10,7 +10,7 @@ func max(a, b decimal.Decimal) decimal.Decimal {
 	return b
 }
 
-func zipValue[T any](a, b []T, defaultValue T) [][]T {
+func zip[T any](a, b []T, defaultValue T) [][]T {
 	var out = make([][]T, 0, maxInt(len(a), len(b)))
 
 	for i := 0; i < maxInt(len(a), len(b)); i++ {

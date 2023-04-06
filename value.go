@@ -66,7 +66,7 @@ func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *V
 	}
 
 	return &Value{
-		data:     value,
+		data:      value,
 		operation: operation,
 		previous:  previousSet,
 		backward:  noop,
@@ -103,7 +103,7 @@ func (v *Value) Backward() {
 }
 
 type Value struct {
-	data     decimal.Decimal
+	data      decimal.Decimal
 	operation Operation
 	previous  []*Value
 	backward  func()

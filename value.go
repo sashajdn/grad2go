@@ -3,6 +3,7 @@ package grad2go
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -70,7 +71,8 @@ func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *V
 		operation: operation,
 		previous:  previousSet,
 		backward:  noop,
-		grad:      decimal.NewFromFloat(0),
+		grad:      decimal.NewFromFloat(0.0),
+		id:        time.Now().UnixNano(),
 	}
 }
 
@@ -86,12 +88,12 @@ func (v *Value) Backward() {
 			return
 		}
 
-		s[v] = struct{}{}
+		s[node] = struct{}{}
 		for _, c := range node.previous {
 			collect(c)
 		}
 
-		topo = append(topo, v)
+		topo = append(topo, node)
 	}
 	collect(v)
 
@@ -108,6 +110,7 @@ type Value struct {
 	previous  []*Value
 	backward  func()
 	grad      decimal.Decimal
+	id        int64
 }
 
 func (v *Value) String() string {
@@ -136,24 +139,29 @@ func (v *Value) String() string {
 func (v *Value) Add(other *Value) *Value {
 	out := NewValue(v.data.Add(other.data), OperationAdd, v, other)
 
-	v.backward = func() {
-		v.grad = v.grad.Add(other.grad)
-		out.grad = out.grad.Add(other.grad)
+	out.backward = func() {
+		v.grad = v.grad.Add(out.grad)
+		other.grad = other.grad.Add(out.grad)
 	}
 
 	return out
 }
 
 func (v *Value) Sub(other *Value) *Value {
-	unary := decimal.NewFromFloat(-1.0)
-	unaryOther := NewValue(other.data.Mul(unary), OperationSub, other.previous...)
-	return v.Add(unaryOther)
+	out := NewValue(v.data.Sub(other.data), OperationSub, v, other)
+
+	out.backward = func() {
+		v.grad = v.grad.Add(out.grad)
+		other.grad = other.grad.Add(out.grad)
+	}
+
+	return out
 }
 
 func (v *Value) Mul(other *Value) *Value {
 	out := NewValue(v.data.Mul(other.data), OperationMul, v, other)
 
-	v.backward = func() {
+	out.backward = func() {
 		// Chain Rule: gradient at out node * differential over (v * other) w.r.t v.
 		dvdout := other.data.Mul(out.grad)
 		v.grad = v.grad.Add(dvdout)
@@ -167,19 +175,23 @@ func (v *Value) Mul(other *Value) *Value {
 }
 
 func (v *Value) Div(other *Value) *Value {
+    // TODO: validate.
 	if v, _ := other.data.Float64(); v == 0 {
 		log.Fatalf("Division by zero error; other is zero")
 	}
 
 	inverse := decimal.NewFromFloat(1.0)
 	inverseOther := NewValue(inverse.Div(other.data), OperationDiv, other.previous...)
-	return v.Mul(inverseOther)
+
+	out := v.Mul(inverseOther)
+	out.operation = OperationDiv
+	return out
 }
 
 func (v *Value) Pow(x decimal.Decimal) *Value {
 	out := NewValue(v.data.Pow(x), OperationPow, v)
 
-	v.backward = func() {
+	out.backward = func() {
 		dvdout := x.Mul(v.data.Pow(x.Sub(one)))
 		v.grad = v.grad.Add(dvdout.Mul(out.grad))
 	}
@@ -190,7 +202,7 @@ func (v *Value) Pow(x decimal.Decimal) *Value {
 func (v *Value) ReLu() *Value {
 	out := NewValue(max(zero, v.data), OperationPow, v)
 
-	v.backward = func() {
+	out.backward = func() {
 		binary := func() decimal.Decimal {
 			if out.data.GreaterThan(zero) {
 				return one

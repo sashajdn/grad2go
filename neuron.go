@@ -50,6 +50,15 @@ func (n *Neuron) Forward(inputs []*Value) *Value {
 	return activation
 }
 
+func (n *Neuron) Parameters() []*Value {
+	// TODO: copy values.
+	var out = make([]*Value, 0, len(n.W)+len(n.B))
+	out = append(out, n.W...)
+	out = append(out, n.B...)
+
+	return out
+}
+
 func (n *Neuron) generateRandomVector(size int, linSpace float64) []*Value {
 	switch {
 	case linSpace == 0:

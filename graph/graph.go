@@ -18,12 +18,13 @@ type Node struct {
 type Edge struct {
 	Weight decimal.Decimal
 	Bias   decimal.Decimal
+    ID string
 }
 
 type Grapher interface {
 	Render() error
 	AddNode(n *Node) error
-	AddEdge(n, m *Node, e *Edge)
+	AddEdge(n, m *Node, e *Edge) error
 }
 
 func Render() error {

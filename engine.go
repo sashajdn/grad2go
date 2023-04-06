@@ -66,7 +66,7 @@ func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *V
 	}
 
 	return &Value{
-		value:     value,
+		data:     value,
 		operation: operation,
 		previous:  previousSet,
 		backward:  noop,
@@ -103,7 +103,7 @@ func (v *Value) Backward() {
 }
 
 type Value struct {
-	value     decimal.Decimal
+	data     decimal.Decimal
 	operation Operation
 	previous  []*Value
 	backward  func()
@@ -127,14 +127,14 @@ func (v *Value) String() string {
 		op = "relu"
 	}
 
-	va, _ := v.value.Float64()
+	va, _ := v.data.Float64()
 	gr, _ := v.grad.Float64()
 
 	return fmt.Sprintf("Value: %.3f, Op: %s, Grad: %.3f", va, op, gr)
 }
 
 func (v *Value) Add(other *Value) *Value {
-	out := NewValue(v.value.Add(other.value), OperationAdd, v, other)
+	out := NewValue(v.data.Add(other.data), OperationAdd, v, other)
 
 	v.backward = func() {
 		v.grad = v.grad.Add(other.grad)
@@ -146,20 +146,20 @@ func (v *Value) Add(other *Value) *Value {
 
 func (v *Value) Sub(other *Value) *Value {
 	unary := decimal.NewFromFloat(-1.0)
-	unaryOther := NewValue(other.value.Mul(unary), OperationSub, other.previous...)
+	unaryOther := NewValue(other.data.Mul(unary), OperationSub, other.previous...)
 	return v.Add(unaryOther)
 }
 
 func (v *Value) Mul(other *Value) *Value {
-	out := NewValue(v.value.Mul(other.value), OperationMul, v, other)
+	out := NewValue(v.data.Mul(other.data), OperationMul, v, other)
 
 	v.backward = func() {
 		// Chain Rule: gradient at out node * differential over (v * other) w.r.t v.
-		dvdout := other.value.Mul(out.grad)
+		dvdout := other.data.Mul(out.grad)
 		v.grad = v.grad.Add(dvdout)
 
 		// Chain Rule: gradient at out node * differential over (v * other) w.r.t other.
-		dodout := v.value.Mul(out.grad)
+		dodout := v.data.Mul(out.grad)
 		other.grad = other.grad.Add(dodout)
 	}
 
@@ -167,20 +167,20 @@ func (v *Value) Mul(other *Value) *Value {
 }
 
 func (v *Value) Div(other *Value) *Value {
-	if v, _ := other.value.Float64(); v == 0 {
+	if v, _ := other.data.Float64(); v == 0 {
 		log.Fatalf("Division by zero error; other is zero")
 	}
 
 	inverse := decimal.NewFromFloat(1.0)
-	inverseOther := NewValue(inverse.Div(other.value), OperationDiv, other.previous...)
+	inverseOther := NewValue(inverse.Div(other.data), OperationDiv, other.previous...)
 	return v.Mul(inverseOther)
 }
 
 func (v *Value) Pow(x decimal.Decimal) *Value {
-	out := NewValue(v.value.Pow(x), OperationPow, v)
+	out := NewValue(v.data.Pow(x), OperationPow, v)
 
 	v.backward = func() {
-		dvdout := x.Mul(v.value.Pow(x.Sub(one)))
+		dvdout := x.Mul(v.data.Pow(x.Sub(one)))
 		v.grad = v.grad.Add(dvdout.Mul(out.grad))
 	}
 
@@ -188,11 +188,11 @@ func (v *Value) Pow(x decimal.Decimal) *Value {
 }
 
 func (v *Value) ReLu() *Value {
-	out := NewValue(max(zero, v.value), OperationPow, v)
+	out := NewValue(max(zero, v.data), OperationPow, v)
 
 	v.backward = func() {
 		binary := func() decimal.Decimal {
-			if out.value.GreaterThan(zero) {
+			if out.data.GreaterThan(zero) {
 				return one
 			}
 

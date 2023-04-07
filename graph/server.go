@@ -5,13 +5,19 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func NewGraphServerHandler(g Grapher) *GraphServerHandler {
 	gsh := &GraphServerHandler{
 		grapher: g,
 	}
-	gsh.r = gsh.router(gin.Default())
+
+	r := gin.Default()
+
+	r.LoadHTMLGlob("templates/*.html")
+
+	gsh.r = gsh.initRouter(r)
 	return gsh
 }
 
@@ -19,6 +25,7 @@ type GraphServerHandler struct {
 	r       *gin.Engine
 	once    sync.Once
 	grapher Grapher
+	logger  *zap.SugaredLogger
 }
 
 func (g *GraphServerHandler) Handler() http.Handler { return g.r }
@@ -29,14 +36,19 @@ func (g *GraphServerHandler) handleGETRender(c *gin.Context) {
 		return
 	}
 
-	// TODO: handle buf.
-	_, err := g.grapher.Render()
+	buf, err := g.grapher.Render()
 	if err != nil {
+		g.logger.With(zap.Error(err)).Error("Failed to render graph")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to render graph"})
+		return
 	}
+
+	c.HTML(http.StatusOK, "graph.html", gin.H{
+		"image": buf,
+	})
 }
 
-func (g *GraphServerHandler) router(r *gin.Engine) *gin.Engine {
+func (g *GraphServerHandler) initRouter(r *gin.Engine) *gin.Engine {
 	g.once.Do(func() {
 		rg := r.Group("/graph")
 

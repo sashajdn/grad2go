@@ -32,6 +32,7 @@ func main() {
 
 	gsh := graph.NewGraphServerHandler(g)
 	httpServer := &http.Server{
+		Addr:    "0.0.0.0:8080",
 		Handler: gsh.Handler(),
 	}
 
@@ -86,12 +87,14 @@ func runStep(ctx context.Context, g graph.Grapher, logger *zap.SugaredLogger, ra
 	// Set a do while rate so we can force one run straight away.
 	doWhileRate := 1 * time.Microsecond
 
-	for {
+	for i := 0; ; i++ {
 		select {
 		case <-time.After(doWhileRate):
 			x := float64(r.Intn(100))
 			w := float64(r.Intn(100))
 			b := float64(r.Intn(100))
+
+			logger.With(zap.Int("step_count", i)).Info("Running step...")
 
 			forward := neuron(x, w, b)
 			activation := forward()

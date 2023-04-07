@@ -1,7 +1,5 @@
 package nn
 
-import "grad2go/graph"
-
 func NewNeuralNetwork(cfg NeuralNetworkConfig) *NeuralNetwork {
 	mlp := NewMLP(cfg.InputShape, cfg.Shape)
 
@@ -37,11 +35,3 @@ func (n *NeuralNetwork) Optimize() {
 }
 
 func (n *NeuralNetwork) Train() {}
-
-func (n *NeuralNetwork) Render() error {
-	if n.cfg.WithGrapher {
-		return graph.Render()
-	}
-
-	return nil
-}

@@ -15,14 +15,15 @@ var (
 	defaultEdgeColor = "red"
 )
 
-func NewGraphVizGrapher(cfg GraphVizConfig) (*GraphVizGrapher, error) {
+func NewGraphVizGraph(cfg GraphVizConfig) (*GraphVizGraph, error) {
 	gv := graphviz.New()
 	g, err := gv.Graph(cfg.GraphVizOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new graph: %w", err)
 	}
 
-	return &GraphVizGrapher{
+	return &GraphVizGraph{
+		cfg:    cfg,
 		cnodes: make(map[string]*cgraph.Node),
 		nodes:  make([]*Node, 0),
 		edges:  make([]*Edge, 0),
@@ -31,30 +32,58 @@ func NewGraphVizGrapher(cfg GraphVizConfig) (*GraphVizGrapher, error) {
 	}, nil
 }
 
-var _ Grapher = new(GraphVizGrapher)
+var _ Grapher = new(GraphVizGraph)
 
-// GraphVizGrapher ...
-type GraphVizGrapher struct {
-	cfg     GraphVizConfig
+// GraphVizGraph ...
+type GraphVizGraph struct {
+	// Config.
+	cfg GraphVizConfig
+
+	// Caches.
 	cnodes  map[string]*cgraph.Node
 	nodes   []*Node
 	nodesMu sync.RWMutex
 	edges   []*Edge
 	cedges  map[string]*cgraph.Edge
-	g       *graphviz.Graphviz
-	cg      *cgraph.Graph
+
+	// Graph.
+	g    *graphviz.Graphviz
+	cg   *cgraph.Graph
+	cgMu sync.RWMutex
 }
 
-func (g *GraphVizGrapher) Render() error {
-	var buf bytes.Buffer
-	if err := g.g.Render(g.cg, graphviz.SVG, &buf); err != nil {
-		return fmt.Errorf("failed to render graph to buffer: %w", err)
+func (g *GraphVizGraph) ResetGraph() error {
+	cg, err := g.g.Graph(g.cfg.GraphVizOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to build new cgraph: %w", err)
 	}
 
+	// Reset internal caches.
+	g.nodesMu.Lock()
+	g.nodes = make([]*Node, 0)
+	g.cnodes = make(map[string]*cgraph.Node)
+
+	g.edges = make([]*Edge, 0)
+	g.cedges = make(map[string]*cgraph.Edge)
+	g.nodesMu.Unlock()
+
+	g.cgMu.Lock()
+	defer g.cgMu.Unlock()
+
+	g.cg = cg
 	return nil
 }
 
-func (g *GraphVizGrapher) AddNode(n *Node) error {
+func (g *GraphVizGraph) Render() (*bytes.Buffer, error) {
+	var buf *bytes.Buffer
+	if err := g.g.Render(g.cg, graphviz.SVG, buf); err != nil {
+		return nil, fmt.Errorf("failed to render graph to buffer: %w", err)
+	}
+
+	return buf, nil
+}
+
+func (g *GraphVizGraph) AddNode(n *Node) error {
 	cnode, err := g.cg.CreateNode(n.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create graph node: %w", err)
@@ -70,7 +99,7 @@ func (g *GraphVizGrapher) AddNode(n *Node) error {
 	return nil
 }
 
-func (g *GraphVizGrapher) AddEdge(n, m *Node, e *Edge) error {
+func (g *GraphVizGraph) AddEdge(n, m *Node, e *Edge) error {
 	cn, ok := g.readNode(n.ID)
 	if !ok {
 		return fmt.Errorf("node `n=%s` cannot be found", n.ID)
@@ -86,7 +115,7 @@ func (g *GraphVizGrapher) AddEdge(n, m *Node, e *Edge) error {
 		return fmt.Errorf("failed to create graph edge: %w", err)
 	}
 
-	label := buildLabelFromNode(n)
+	label := buildLabelFromEdge(e)
 	cedge.SetLabel(label)
 	cedge.SetColor(stringOrDefault(g.cfg.EdgeColor, defaultEdgeColor))
 
@@ -96,7 +125,7 @@ func (g *GraphVizGrapher) AddEdge(n, m *Node, e *Edge) error {
 	return nil
 }
 
-func (g *GraphVizGrapher) setNode(id string, n *cgraph.Node) {
+func (g *GraphVizGraph) setNode(id string, n *cgraph.Node) {
 	g.nodesMu.Lock()
 	defer g.nodesMu.Unlock()
 
@@ -108,7 +137,7 @@ func (g *GraphVizGrapher) setNode(id string, n *cgraph.Node) {
 	g.cnodes[id] = n
 }
 
-func (g *GraphVizGrapher) readNode(id string) (*cgraph.Node, bool) {
+func (g *GraphVizGraph) readNode(id string) (*cgraph.Node, bool) {
 	g.nodesMu.RLock()
 	defer g.nodesMu.RUnlock()
 
@@ -119,7 +148,7 @@ func (g *GraphVizGrapher) readNode(id string) (*cgraph.Node, bool) {
 	return nil, false
 }
 
-func (g *GraphVizGrapher) Close() error {
+func (g *GraphVizGraph) Close() error {
 	gErr := g.g.Close()
 	gcErr := g.cg.Close()
 
@@ -152,10 +181,14 @@ func buildLabelFromNode(n *Node) string {
 		return ""
 	}
 
+	if n.IsOperandNode {
+		return n.Operand
+	}
+
 	d, _ := n.Data.Float64()
 	g, _ := n.Grad.Float64()
 
-	return fmt.Sprintf("| data=%.4f | grad=%.4f | op=%s |", d, g, n.Operand)
+	return fmt.Sprintf("| data=%.4f | grad=%.4f |", d, g)
 }
 
 func buildLabelFromEdge(e *Edge) string {
@@ -166,7 +199,11 @@ func buildLabelFromEdge(e *Edge) string {
 	w, _ := e.Weight.Float64()
 	b, _ := e.Bias.Float64()
 
-	return fmt.Sprintf("| w=%.4f | b=%.4f |", w, b)
+	if w == 0 && b == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("{ w=%.4f | b=%.4f }", w, b)
 }
 
 func stringOrDefault(s, d string) string {

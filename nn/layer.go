@@ -1,4 +1,4 @@
-package grad2go
+package nn
 
 func NewLayer(numberOfInputs, numberOfOutputs int) *Layer {
 	var neurons = make([]*Neuron, 0, numberOfInputs)

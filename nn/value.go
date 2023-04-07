@@ -1,8 +1,9 @@
-package grad2go
+package nn
 
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -175,7 +176,7 @@ func (v *Value) Mul(other *Value) *Value {
 }
 
 func (v *Value) Div(other *Value) *Value {
-    // TODO: validate.
+	// TODO: validate.
 	if v, _ := other.data.Float64(); v == 0 {
 		log.Fatalf("Division by zero error; other is zero")
 	}
@@ -216,3 +217,5 @@ func (v *Value) ReLu() *Value {
 
 	return out
 }
+
+func (v *Value) ID() string { return strconv.Itoa(int(v.id)) }

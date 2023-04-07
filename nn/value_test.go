@@ -1,4 +1,4 @@
-package grad2go
+package nn
 
 import (
 	"fmt"

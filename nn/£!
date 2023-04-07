@@ -18,13 +18,12 @@ func Init(g Grapher) {
 type Node struct {
 	Data    decimal.Decimal
 	Grad    decimal.Decimal
-    IsOperandNode bool
 	Operand string
 	ID      string
 }
 
 type Edge struct {
-	V, U   *Node
+    V, U *Node
 	Weight decimal.Decimal
 	Bias   decimal.Decimal
 	ID     string

@@ -1,4 +1,4 @@
-package grad2go
+package nn
 
 func NewMLP(numberOfInputs int, outputSizes []int) *MLP {
 	var sizes = make([]int, 0, 1+len(outputSizes))

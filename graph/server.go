@@ -1,24 +1,52 @@
 package graph
 
 import (
+	"embed"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-func NewGraphServerHandler(g Grapher) *GraphServerHandler {
+const (
+	templatesDir = "templates"
+)
+
+//go:embed templates/*
+var fs embed.FS
+
+func NewGraphServerHandler(g Grapher, logger *zap.SugaredLogger) (*GraphServerHandler, error) {
+	logger = logger.With("object", "graph_server_handler")
+
 	gsh := &GraphServerHandler{
 		grapher: g,
+		logger:  logger,
 	}
 
 	r := gin.Default()
 
-	r.LoadHTMLGlob("templates/*.html")
+	dfs, err := fs.ReadDir(templatesDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load graph templates: %w", err)
+	}
+
+	var templates []string
+	for _, df := range dfs {
+		if df.IsDir() {
+			continue
+		}
+
+		logger.With(zap.String("template", df.Name())).Info("Adding HTML template")
+		templates = append(templates, df.Name())
+	}
+
+	r.LoadHTMLFiles(templates...)
 
 	gsh.r = gsh.initRouter(r)
-	return gsh
+	return gsh, nil
 }
 
 type GraphServerHandler struct {
@@ -43,8 +71,11 @@ func (g *GraphServerHandler) handleGETRender(c *gin.Context) {
 		return
 	}
 
+    // TODO: remove
+	// g.logger.Infof("SVG: %s", buf.String())
+
 	c.HTML(http.StatusOK, "graph.html", gin.H{
-		"image": buf,
+		"image": (cleanSVGString(buf.String())),
 	})
 }
 
@@ -57,4 +88,13 @@ func (g *GraphServerHandler) initRouter(r *gin.Engine) *gin.Engine {
 	})
 
 	return r
+}
+
+func cleanSVGString(s string) string {
+	s = strings.TrimPrefix(s, `"`)
+	s = strings.TrimSuffix(s, `"`)
+	s = strings.TrimPrefix(s, `<?xml version="1.0" encoding="UTF-8" standalone="no"?>`)
+
+    fmt.Println("SVG CLEANED STring: ", s)
+	return s
 }

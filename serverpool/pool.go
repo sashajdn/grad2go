@@ -28,7 +28,7 @@ type ServerPool struct {
 
 func (s *ServerPool) Add(server ServerPoolItem) {
 	s.poolMu.Lock()
-	defer s.poolMu.Lock()
+	defer s.poolMu.Unlock()
 
 	s.pool = append(s.pool, server)
 	s.logger.With(zap.String("pool_item", server.Name())).Info("Adding server to server pool")
@@ -92,7 +92,7 @@ func (s *ServerPool) Shutdown() chan error {
 		}()
 	}
 
-	s.poolMu.Unlock()
+	s.poolMu.RUnlock()
 
 	wg.Wait()
 	return ch

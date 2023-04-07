@@ -46,7 +46,9 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 	build(root)
 
 	for _, node := range setOfGraphNodes {
-		g.AddNode(node)
+		if err := g.AddNode(node); err != nil {
+			return fmt.Errorf("add node %s: %w", node.ID, err)
+		}
 
 		// Add "faked" operand node for visibility.
 		if node.Operand != "noop" {
@@ -54,18 +56,29 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 			cp.IsOperandNode = true
 			cp.ID = cp.ID + cp.Operand
 
-			g.AddNode(cp)
-			g.AddEdge(cp, node, &graph.Edge{
-				ID: fmt.Sprintf("%s:%s", cp.ID, node.ID),
-			})
+			if err := g.AddNode(cp); err != nil {
+				return fmt.Errorf("add node copy as operand node %s: %w", cp.ID, err)
+			}
+
+			edgeID := fmt.Sprintf("%s:%s", cp.ID, node.ID)
+
+			if err := g.AddEdge(cp, node, &graph.Edge{
+				ID: edgeID,
+			}); err != nil {
+				return fmt.Errorf("add edge %s: %w", edgeID, err)
+			}
 		}
 	}
 
 	for _, edge := range setOfGraphEdges {
 		v, u := edge[0], edge[1]
-		g.AddEdge(v, u, &graph.Edge{
-			ID: fmt.Sprint("%s:%s", v.ID, u.ID),
-		})
+
+		edgeID := fmt.Sprintf("%s:%s", v.ID, u.ID)
+		if err := g.AddEdge(v, u, &graph.Edge{
+			ID: edgeID,
+		}); err != nil {
+			return fmt.Errorf("add edge %s: %w", edgeID, err)
+		}
 	}
 
 	return nil

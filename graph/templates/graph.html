@@ -1,34 +1,10 @@
-// header.html
-{{define "header.html"}}
-<!DOCTYPE html>
+{{ define "graph.html"}}
 <html>
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- <link rel="stylesheet" type="text/css" href="/assets/bulma.min.css"> -->
-	<title></title>
-</head>
-<body>
-<div class="container">
-<br><br>
-{{end}}
-
-
-// footer.html
-{{define "footer.html"}}
-</div>
-</body>
-</html>
-{{end}}
-
-// graph.html
-{{template "graph.html"}}
-<h1 class="title">
-	Grad2Go: Graph
-
+    <h1 class="title">
+        Grad2Go: Graph
+    </h1>
     <svg width="300" height="200" >
-        {{.image}}
+        {{ .image }}
     </svg>
-</h1>
-<p>{{ .content }}</p>
-{{template "footer.html"}}
+</html>
+{{ end }}

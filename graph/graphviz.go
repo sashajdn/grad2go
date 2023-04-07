@@ -75,7 +75,7 @@ func (g *GraphVizGraph) ResetGraph() error {
 }
 
 func (g *GraphVizGraph) Render() (*bytes.Buffer, error) {
-	var buf *bytes.Buffer
+	var buf = &bytes.Buffer{}
 	if err := g.g.Render(g.cg, graphviz.SVG, buf); err != nil {
 		return nil, fmt.Errorf("failed to render graph to buffer: %w", err)
 	}

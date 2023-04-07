@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"grad2go/graph"
@@ -30,13 +31,17 @@ func main() {
 		sugaredLogger.With(zap.Error(err)).Fatal("Failed to create new graphviz graph")
 	}
 
-	gsh := graph.NewGraphServerHandler(g)
+	gsh, err := graph.NewGraphServerHandler(g, sugaredLogger)
+	if err != nil {
+		sugaredLogger.With(zap.Error(err)).Error("Failed to create graph server")
+	}
+
 	httpServer := &http.Server{
 		Addr:    "0.0.0.0:8080",
 		Handler: gsh.Handler(),
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer cancel()
 
 	serverPool := serverpool.New(sugaredLogger)

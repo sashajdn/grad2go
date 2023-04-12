@@ -52,7 +52,7 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 
 		// Add "faked" operand node for visibility.
 		if node.Operand != "noop" {
-			cp := node
+			cp := deepCopy(node)
 			cp.IsOperandNode = true
 			cp.ID = cp.ID + cp.Operand
 
@@ -67,6 +67,8 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 			}); err != nil {
 				return fmt.Errorf("add edge %s: %w", edgeID, err)
 			}
+
+			setOfGraphNodes[node.ID] = cp
 		}
 	}
 
@@ -74,7 +76,7 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 		v, u := edge[0], edge[1]
 
 		edgeID := fmt.Sprintf("%s:%s", v.ID, u.ID)
-		if err := g.AddEdge(v, u, &graph.Edge{
+		if err := g.AddEdge(u, v, &graph.Edge{
 			ID: edgeID,
 		}); err != nil {
 			return fmt.Errorf("add edge %s: %w", edgeID, err)
@@ -91,5 +93,13 @@ func marshalValueToNode(v *Value) *graph.Node {
 		Operand:       v.operation.String(),
 		ID:            v.ID(),
 		IsOperandNode: false,
+		Label:         v.Label(),
 	}
+}
+
+func deepCopy(n *graph.Node) *graph.Node {
+	d, _ := n.Data.Float64()
+	g, _ := n.Grad.Float64()
+
+	return graph.NewNode(d, g, n.Operand, n.ID, n.IsOperandNode)
 }

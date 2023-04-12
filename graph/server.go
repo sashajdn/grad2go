@@ -3,6 +3,7 @@ package graph
 import (
 	"embed"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 	"sync"
@@ -71,11 +72,8 @@ func (g *GraphServerHandler) handleGETRender(c *gin.Context) {
 		return
 	}
 
-    // TODO: remove
-	// g.logger.Infof("SVG: %s", buf.String())
-
 	c.HTML(http.StatusOK, "graph.html", gin.H{
-		"image": (cleanSVGString(buf.String())),
+		"image": template.HTML(cleanSVGString(buf.String())),
 	})
 }
 
@@ -94,7 +92,5 @@ func cleanSVGString(s string) string {
 	s = strings.TrimPrefix(s, `"`)
 	s = strings.TrimSuffix(s, `"`)
 	s = strings.TrimPrefix(s, `<?xml version="1.0" encoding="UTF-8" standalone="no"?>`)
-
-    fmt.Println("SVG CLEANED STring: ", s)
 	return s
 }

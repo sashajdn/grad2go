@@ -11,8 +11,8 @@ import (
 
 var (
 	// TODO: enumerate
-	defaultNodeColor = "white"
-	defaultEdgeColor = "red"
+	defaultNodeColor = "hotpink3"
+	defaultEdgeColor = "lightseagreen"
 )
 
 func NewGraphVizGraph(cfg GraphVizConfig) (*GraphVizGraph, error) {
@@ -91,6 +91,7 @@ func (g *GraphVizGraph) AddNode(n *Node) error {
 
 	label := buildLabelFromNode(n)
 	cnode.SetLabel(label)
+	cnode.SetShape(cgraph.CircleShape)
 	cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultNodeColor))
 
 	g.setNode(n.ID, cnode)
@@ -188,7 +189,7 @@ func buildLabelFromNode(n *Node) string {
 	d, _ := n.Data.Float64()
 	g, _ := n.Grad.Float64()
 
-	return fmt.Sprintf("| data=%.4f | grad=%.4f |", d, g)
+	return fmt.Sprintf("| %s | data=%.4f | grad=%.4f |", n.Label, d, g)
 }
 
 func buildLabelFromEdge(e *Edge) string {

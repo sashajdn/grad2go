@@ -34,23 +34,29 @@ func (o Operation) String() string {
 	case OperationNOOP:
 		return "noop"
 	case OperationAdd:
-		return "add"
+		return "+"
 	case OperationSub:
-		return "sub"
+		return "-"
 	case OperationMul:
-		return "mul"
+		return "*"
 	case OperationDiv:
-		return "div"
+		return "/"
 	case OperationPow:
-		return "pow"
+		return "**"
 	case OperationReLu:
-		return "relu"
+		return "ReLu"
 	default:
 		return "unknown"
 	}
 }
 
 var noop = func() {}
+
+func NewValueWithLabel(value decimal.Decimal, operation Operation, label string, children ...*Value) *Value {
+	v := NewValue(value, operation, children...)
+	v.label = label
+	return v
+}
 
 func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *Value {
 	var (
@@ -112,7 +118,10 @@ type Value struct {
 	backward  func()
 	grad      decimal.Decimal
 	id        int64
+	label     string
 }
+
+func (v *Value) Label() string { return v.label }
 
 func (v *Value) String() string {
 	var op = "noop"
@@ -201,7 +210,7 @@ func (v *Value) Pow(x decimal.Decimal) *Value {
 }
 
 func (v *Value) ReLu() *Value {
-	out := NewValue(max(zero, v.data), OperationPow, v)
+	out := NewValue(max(zero, v.data), OperationReLu, v)
 
 	out.backward = func() {
 		binary := func() decimal.Decimal {

@@ -15,12 +15,26 @@ func Init(g Grapher) {
 	}
 }
 
+// TODO: pass label.
+func NewNode(data, grad float64, operand, id string, isOperandNode bool) *Node {
+	d, g := decimal.NewFromFloat(data), decimal.NewFromFloat(grad)
+
+	return &Node{
+		Data:          d,
+		Grad:          g,
+		IsOperandNode: isOperandNode,
+		Operand:       operand,
+		ID:            id,
+	}
+}
+
 type Node struct {
-	Data    decimal.Decimal
-	Grad    decimal.Decimal
-    IsOperandNode bool
-	Operand string
-	ID      string
+	Data          decimal.Decimal
+	Grad          decimal.Decimal
+	IsOperandNode bool
+	Operand       string
+	ID            string
+	Label         string
 }
 
 type Edge struct {

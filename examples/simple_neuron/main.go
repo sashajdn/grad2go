@@ -75,11 +75,13 @@ func main() {
 
 func neuron(x, w, b float64) func() *nn.Value {
 	return func() *nn.Value {
-		xx := nn.NewValue(decimal.NewFromFloat(x), nn.OperationNOOP)
-		ww := nn.NewValue(decimal.NewFromFloat(w), nn.OperationNOOP)
-		bb := nn.NewValue(decimal.NewFromFloat(b), nn.OperationNOOP)
+		xx := nn.NewValueWithLabel(decimal.NewFromFloat(x), nn.OperationNOOP, "x")
+		ww := nn.NewValueWithLabel(decimal.NewFromFloat(w), nn.OperationNOOP, "w")
+		bb := nn.NewValueWithLabel(decimal.NewFromFloat(b), nn.OperationNOOP, "b")
 
 		out := xx.Mul(ww).Add(bb)
+
+		// ReLu( w * x + b)
 		activation := out.ReLu()
 
 		return activation
@@ -95,9 +97,9 @@ func runStep(ctx context.Context, g graph.Grapher, logger *zap.SugaredLogger, ra
 	for i := 0; ; i++ {
 		select {
 		case <-time.After(doWhileRate):
-			x := float64(r.Intn(100))
-			w := float64(r.Intn(100))
-			b := float64(r.Intn(100))
+			x := r.Float64()
+			w := r.Float64()
+			b := r.Float64()
 
 			logger.With(zap.Int("step_count", i)).Info("Running step...")
 

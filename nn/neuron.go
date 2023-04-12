@@ -1,4 +1,4 @@
-package grad2go
+package nn
 
 import (
 	"log"
@@ -9,8 +9,6 @@ import (
 )
 
 var minusOne = decimal.NewFromFloat(-1.0)
-
-type NeuralNetwork struct{}
 
 func NewNeuron(numberOfInputs int) *Neuron {
 	n := &Neuron{

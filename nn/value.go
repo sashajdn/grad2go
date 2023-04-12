@@ -1,8 +1,9 @@
-package grad2go
+package nn
 
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -33,23 +34,29 @@ func (o Operation) String() string {
 	case OperationNOOP:
 		return "noop"
 	case OperationAdd:
-		return "add"
+		return "+"
 	case OperationSub:
-		return "sub"
+		return "-"
 	case OperationMul:
-		return "mul"
+		return "*"
 	case OperationDiv:
-		return "div"
+		return "/"
 	case OperationPow:
-		return "pow"
+		return "**"
 	case OperationReLu:
-		return "relu"
+		return "ReLu"
 	default:
 		return "unknown"
 	}
 }
 
 var noop = func() {}
+
+func NewValueWithLabel(value decimal.Decimal, operation Operation, label string, children ...*Value) *Value {
+	v := NewValue(value, operation, children...)
+	v.label = label
+	return v
+}
 
 func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *Value {
 	var (
@@ -111,7 +118,10 @@ type Value struct {
 	backward  func()
 	grad      decimal.Decimal
 	id        int64
+	label     string
 }
+
+func (v *Value) Label() string { return v.label }
 
 func (v *Value) String() string {
 	var op = "noop"
@@ -175,7 +185,7 @@ func (v *Value) Mul(other *Value) *Value {
 }
 
 func (v *Value) Div(other *Value) *Value {
-    // TODO: validate.
+	// TODO: validate.
 	if v, _ := other.data.Float64(); v == 0 {
 		log.Fatalf("Division by zero error; other is zero")
 	}
@@ -200,7 +210,7 @@ func (v *Value) Pow(x decimal.Decimal) *Value {
 }
 
 func (v *Value) ReLu() *Value {
-	out := NewValue(max(zero, v.data), OperationPow, v)
+	out := NewValue(max(zero, v.data), OperationReLu, v)
 
 	out.backward = func() {
 		binary := func() decimal.Decimal {
@@ -216,3 +226,5 @@ func (v *Value) ReLu() *Value {
 
 	return out
 }
+
+func (v *Value) ID() string { return strconv.Itoa(int(v.id)) }

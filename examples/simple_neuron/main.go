@@ -101,15 +101,20 @@ func runStep(ctx context.Context, g graph.Grapher, logger *zap.SugaredLogger, ra
 			w := r.Float64()
 			b := r.Float64()
 
-			logger.With(zap.Int("step_count", i)).Info("Running step...")
+			logger.With(
+				zap.Int("step_count", i),
+				zap.Float64("x", x),
+				zap.Float64("w", w),
+				zap.Float64("b", b),
+			).Info("Running step...")
 
+			// Return `neuron` as a function to "imitate" a forward step for clarity.
 			forward := neuron(x, w, b)
 			activation := forward()
 			activation.Backward()
 
 			if err := nn.BuildGraphFromRootValue(g, activation); err != nil {
 				logger.With(zap.Error(err)).Fatal("Faield to build graph")
-
 			}
 
 			doWhileRate = rate

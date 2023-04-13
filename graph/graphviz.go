@@ -11,8 +11,10 @@ import (
 
 var (
 	// TODO: enumerate
-	defaultNodeColor = "hotpink3"
-	defaultEdgeColor = "lightseagreen"
+	defaultInputNodeColor   = "hotpink3"
+	defaultOperandNodeColor = "coral1"
+	defaultValueNodeColor   = "lightpink2"
+	defaultEdgeColor        = "lightseagreen"
 )
 
 func NewGraphVizGraph(cfg GraphVizConfig) (*GraphVizGraph, error) {
@@ -92,7 +94,19 @@ func (g *GraphVizGraph) AddNode(n *Node) error {
 	label := buildLabelFromNode(n)
 	cnode.SetLabel(label)
 	cnode.SetShape(cgraph.CircleShape)
-	cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultNodeColor))
+	cnode.SetStyle(cgraph.FilledNodeStyle)
+
+	switch {
+	case n.IsOperandNode:
+		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultOperandNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultOperandNodeColor))
+	case n.Operand == "noop":
+		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultInputNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultInputNodeColor))
+	default:
+		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultValueNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultValueNodeColor))
+	}
 
 	g.setNode(n.ID, cnode)
 	g.nodes = append(g.nodes, n)
@@ -189,7 +203,11 @@ func buildLabelFromNode(n *Node) string {
 	d, _ := n.Data.Float64()
 	g, _ := n.Grad.Float64()
 
-	return fmt.Sprintf("| %s | data=%.4f | grad=%.4f |", n.Label, d, g)
+	if n.Label == "" {
+		return fmt.Sprintf("Value = %.4f\n ∇ = %.4f", d, g)
+	}
+
+	return fmt.Sprintf("%s\n\nValue = %.4f\n ∇ = %.4f", n.Label, d, g)
 }
 
 func buildLabelFromEdge(e *Edge) string {

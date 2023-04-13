@@ -25,16 +25,35 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 	// DFS.
 	var build func(node *Value)
 	build = func(node *Value) {
+		// Add original value as node.
 		if _, ok := setOfGraphNodes[node.ID()]; ok {
 			return
 		}
 		setOfGraphNodes[node.ID()] = marshalValueToNode(node)
 
+		var workingNode = marshalValueToNode(node)
+		if node.operation.String() != "noop" {
+			// Create "operand" node & inject.
+			cp := deepCopy(workingNode)
+			cp.IsOperandNode = true
+			cp.ID = cp.ID + cp.Operand
+
+			setOfGraphNodes[cp.ID] = cp
+
+			// Create edge between original value & operand.
+			eID := edgeID{workingNode.ID, cp.ID}
+			setOfGraphEdges[eID] = [2]*graph.Node{workingNode, cp}
+
+			// We now want all the child node values to be "inputs" to the operand node.
+			workingNode = cp
+		}
+
+		// Create an edges.
 		for _, child := range node.previous {
 			eID := edgeID{node.ID(), child.ID()}
 
 			if _, ok := setOfGraphEdges[eID]; !ok {
-				v := marshalValueToNode(node)
+				v := workingNode
 				u := marshalValueToNode(child)
 
 				setOfGraphEdges[eID] = [2]*graph.Node{v, u}
@@ -45,33 +64,14 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 	}
 	build(root)
 
+	// Build nodes.
 	for _, node := range setOfGraphNodes {
 		if err := g.AddNode(node); err != nil {
 			return fmt.Errorf("add node %s: %w", node.ID, err)
 		}
-
-		// Add "faked" operand node for visibility.
-		if node.Operand != "noop" {
-			cp := deepCopy(node)
-			cp.IsOperandNode = true
-			cp.ID = cp.ID + cp.Operand
-
-			if err := g.AddNode(cp); err != nil {
-				return fmt.Errorf("add node copy as operand node %s: %w", cp.ID, err)
-			}
-
-			edgeID := fmt.Sprintf("%s:%s", cp.ID, node.ID)
-
-			if err := g.AddEdge(cp, node, &graph.Edge{
-				ID: edgeID,
-			}); err != nil {
-				return fmt.Errorf("add edge %s: %w", edgeID, err)
-			}
-
-			setOfGraphNodes[node.ID] = cp
-		}
 	}
 
+	// Build edges.
 	for _, edge := range setOfGraphEdges {
 		v, u := edge[0], edge[1]
 

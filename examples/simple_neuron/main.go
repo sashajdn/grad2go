@@ -33,7 +33,7 @@ func main() {
 
 	gsh, err := graph.NewGraphServerHandler(g, sugaredLogger)
 	if err != nil {
-		sugaredLogger.With(zap.Error(err)).Error("Failed to create graph server")
+		sugaredLogger.With(zap.Error(err)).Fatal("Failed to create graph server")
 	}
 
 	httpServer := &http.Server{

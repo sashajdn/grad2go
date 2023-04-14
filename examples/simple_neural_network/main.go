@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"grad2go/graph"
+	"grad2go/loss"
 	"grad2go/nn"
 	"grad2go/optimizer"
 	"grad2go/serverpool"
@@ -52,10 +53,14 @@ func main() {
 
 	errCh := serverPool.Start(ctx)
 
-	net := nn.NewNeuralNetwork(nn.NeuralNetworkConfig{
-		InputShape: 3,
-		Shape:      []int{3, 3},
-	}, optimizer.SGD)
+	net := nn.NewNeuralNetwork(
+		nn.NeuralNetworkConfig{
+			InputShape: 3,
+			Shape:      []int{3, 3},
+		},
+		optimizer.SGD,
+		loss.MeanSquaredError,
+	)
 
 	// Handle errors.
 	go func() {
@@ -82,7 +87,7 @@ func main() {
 	sugaredLogger.Info("Graceful shutdown of serverpool complete")
 }
 
-func generateRandInput(r *rand.Rand, size int) []*nn.Value {
+func generateRandValues(r *rand.Rand, size int) []*nn.Value {
 	var vv = make([]*nn.Value, size)
 	for i := 0; i < size; i++ {
 
@@ -109,6 +114,8 @@ func runStep(ctx context.Context, net *nn.NeuralNetwork, g graph.Grapher, logger
 	// Set a do while rate so we can force one run straight away.
 	doWhileRate := 1 * time.Microsecond
 
+	expectation := generateRandValues(r, net.OutputShape())
+
 	for i := 0; ; i++ {
 		select {
 		case <-time.After(doWhileRate):
@@ -118,7 +125,7 @@ func runStep(ctx context.Context, net *nn.NeuralNetwork, g graph.Grapher, logger
 
 		logger := logger.With(zap.Int("step_count", i))
 
-		input := generateRandInput(r, net.InputShape())
+		input := generateRandValues(r, net.InputShape())
 
 		var logParams = make([]float64, 0, len(input))
 		for _, in := range input {
@@ -129,7 +136,7 @@ func runStep(ctx context.Context, net *nn.NeuralNetwork, g graph.Grapher, logger
 			zap.Float64s("input", logParams),
 		).Info("Running NN step")
 
-		lossValue, err := net.Step(input)
+		lossValue, err := net.Step(input, expectation)
 		if err != nil {
 			logger.With(zap.Error(err)).Error("Failed to perfom neural network step")
 			continue
@@ -139,6 +146,8 @@ func runStep(ctx context.Context, net *nn.NeuralNetwork, g graph.Grapher, logger
 			logger.With(zap.Error(err)).Error("Failed to render graph for neural network step")
 			continue
 		}
+
+		logger.With(zap.Float64("loss_value", lossValue.Float64())).Info("Loss value for step")
 
 		doWhileRate = rate
 	}

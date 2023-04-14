@@ -1,12 +1,31 @@
 package nn
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
+
+type context struct {
+	Layer         string
+	NeuralNetwork string
+	Neuron        string
+}
+
+func (c *context) String() string {
+	if c == nil {
+		return ""
+	}
+
+	return fmt.Sprintf(`
+Neuron: %s
+Layer: %s
+Network: %s
+`, c.Neuron, c.Layer, c.NeuralNetwork)
+}
 
 var minusOne = decimal.NewFromFloat(-1.0)
 
@@ -22,11 +41,26 @@ func NewNeuron(numberOfInputs int) *Neuron {
 	return n
 }
 
+func NewNeuronWithContext(numberOfInputs int, context *context) *Neuron {
+    // TODO: consolidate with the above.
+	n := &Neuron{
+		r:       rand.New(rand.NewSource(time.Now().UnixNano())),
+		d:       numberOfInputs,
+		context: context,
+	}
+
+	n.W = n.generateRandomVector(numberOfInputs, 1)
+	n.B = n.generateRandomVector(1, 1)
+
+	return n
+}
+
 type Neuron struct {
-	W []*Value
-	B []*Value
-	r *rand.Rand
-	d int
+	W       []*Value
+	B       []*Value
+	r       *rand.Rand
+	d       int
+	context *context
 }
 
 func (n *Neuron) Forward(inputs []*Value) *Value {
@@ -80,7 +114,7 @@ func (n *Neuron) generateRandomVector(size int, linSpace float64) []*Value {
 			value = value.Mul(minusOne)
 		}
 
-		out[i] = NewValue(value, OperationNOOP)
+		out[i] = NewValueWithLabel(value, OperationNOOP, n.context.String())
 	}
 
 	return out

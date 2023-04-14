@@ -1,5 +1,7 @@
 package nn
 
+import "strconv"
+
 func NewLayer(numberOfInputs, numberOfOutputs int) *Layer {
 	var neurons = make([]*Neuron, 0, numberOfInputs)
 	for i := 0; i < numberOfInputs; i++ {
@@ -11,8 +13,26 @@ func NewLayer(numberOfInputs, numberOfOutputs int) *Layer {
 	}
 }
 
+// TODO: pass context & not label.
+func NewLayerWithLabel(numberOfInputs, numberOfOutputs int, id int) *Layer {
+	var neurons = make([]*Neuron, 0, numberOfInputs)
+	for i := 0; i < numberOfInputs; i++ {
+		context := &context{
+			Layer:  id,
+			Neuron: strconv.Itoa(i),
+		}
+		neurons = append(neurons, NewNeuronWithContext(numberOfOutputs, context))
+	}
+
+	return &Layer{
+		neurons: neurons,
+		id:      id,
+	}
+}
+
 type Layer struct {
 	neurons []*Neuron
+	id      int
 }
 
 func (l *Layer) Forward(inputs []*Value) []*Value {

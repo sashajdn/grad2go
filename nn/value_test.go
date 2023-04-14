@@ -23,8 +23,8 @@ func TestValue(t *testing.T) {
 	}{
 		{
 			name: "simple_int_add",
-			a:    NewValue(decimal.NewFromFloat(1.0), OperationNOOP),
-			b:    NewValue(decimal.NewFromFloat(1.0), OperationNOOP),
+			a:    newValueWithContext(decimal.NewFromFloat(1.0), OperationNOOP, KindValue, nil),
+			b:    newValueWithContext(decimal.NewFromFloat(1.0), OperationNOOP, KindValue, nil),
 			op: func(a, b *Value) *Value {
 				return a.Add(b)
 			},
@@ -36,14 +36,14 @@ func TestValue(t *testing.T) {
 				c.operation = operand
 				return c
 			},
-			expectedValue: NewValue(decimal.NewFromFloat(1.0), OperationAdd),
+			expectedValue: newValueWithContext(decimal.NewFromFloat(1.0), OperationAdd, KindValue, nil),
 			expectedAGrad: decimal.NewFromFloat(1.0),
 			expectedBGrad: decimal.NewFromFloat(1.0),
 		},
 		{
 			name: "simple_int_mul",
-			a:    NewValue(decimal.NewFromFloat(2.0), OperationNOOP),
-			b:    NewValue(decimal.NewFromFloat(3.0), OperationNOOP),
+			a:    newValueWithContext(decimal.NewFromFloat(2.0), OperationNOOP, KindValue, nil),
+			b:    newValueWithContext(decimal.NewFromFloat(3.0), OperationNOOP, KindValue, nil),
 			op: func(a, b *Value) *Value {
 				return a.Mul(b)
 			},
@@ -55,14 +55,14 @@ func TestValue(t *testing.T) {
 				c.operation = operand
 				return c
 			},
-			expectedValue: NewValue(decimal.NewFromFloat(6.0), OperationMul),
+			expectedValue: newValueWithContext(decimal.NewFromFloat(6.0), OperationMul, KindValue, nil),
 			expectedAGrad: decimal.NewFromFloat(3.0),
 			expectedBGrad: decimal.NewFromFloat(2.0),
 		},
 		{
 			name: "simple_int_sub",
-			a:    NewValue(decimal.NewFromFloat(2.0), OperationNOOP),
-			b:    NewValue(decimal.NewFromFloat(3.0), OperationNOOP),
+			a:    newValueWithContext(decimal.NewFromFloat(2.0), OperationNOOP, KindValue, nil),
+			b:    newValueWithContext(decimal.NewFromFloat(3.0), OperationNOOP, KindValue, nil),
 			op: func(a, b *Value) *Value {
 				return a.Sub(b)
 			},
@@ -74,7 +74,7 @@ func TestValue(t *testing.T) {
 				c.operation = operand
 				return c
 			},
-			expectedValue: NewValue(decimal.NewFromFloat(-1.0), OperationSub),
+			expectedValue: newValueWithContext(decimal.NewFromFloat(-1.0), OperationSub, KindValue, nil),
 			expectedAGrad: decimal.NewFromFloat(1.0),
 			expectedBGrad: decimal.NewFromFloat(1.0),
 		},

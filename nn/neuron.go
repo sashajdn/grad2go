@@ -16,17 +16,32 @@ func NewNeuron(numberOfInputs int) *Neuron {
 		d: numberOfInputs,
 	}
 
-	n.W = n.generateRandomVector(numberOfInputs, 1)
-	n.B = n.generateRandomVector(1, 1)
+	n.W = n.generateRandomVector(numberOfInputs, 1, KindWeight)
+	n.B = n.generateRandomVector(1, 1, KindBias)
+
+	return n
+}
+
+func NewNeuronWithContext(numberOfInputs int, context *context) *Neuron {
+	// TODO: consolidate with the above.
+	n := &Neuron{
+		r:       rand.New(rand.NewSource(time.Now().UnixNano())),
+		d:       numberOfInputs,
+		context: context,
+	}
+
+	n.W = n.generateRandomVector(numberOfInputs, 1, KindWeight)
+	n.B = n.generateRandomVector(1, 1, KindBias)
 
 	return n
 }
 
 type Neuron struct {
-	W []*Value
-	B []*Value
-	r *rand.Rand
-	d int
+	W       []*Value
+	B       []*Value
+	r       *rand.Rand
+	d       int
+	context *context
 }
 
 func (n *Neuron) Forward(inputs []*Value) *Value {
@@ -57,7 +72,7 @@ func (n *Neuron) Parameters() []*Value {
 	return out
 }
 
-func (n *Neuron) generateRandomVector(size int, linSpace float64) []*Value {
+func (n *Neuron) generateRandomVector(size int, linSpace float64, kind Kind) []*Value {
 	switch {
 	case linSpace == 0:
 		linSpace = 1
@@ -80,7 +95,7 @@ func (n *Neuron) generateRandomVector(size int, linSpace float64) []*Value {
 			value = value.Mul(minusOne)
 		}
 
-		out[i] = NewValue(value, OperationNOOP)
+		out[i] = newValueWithContext(value, OperationNOOP, kind, n.context)
 	}
 
 	return out

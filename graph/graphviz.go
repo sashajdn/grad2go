@@ -11,9 +11,11 @@ import (
 
 var (
 	// TODO: enumerate
-	defaultInputNodeColor   = "hotpink3"
+	defaultInputNodeColor   = "aquamarine3"
 	defaultOperandNodeColor = "coral1"
-	defaultValueNodeColor   = "lightpink2"
+	defaultValueNodeColor   = "lightpink"
+	defaultBiasNodeColor    = "indianred"
+	defaultWeightNodeColor  = "lightskyblue"
 	defaultEdgeColor        = "lightseagreen"
 )
 
@@ -29,6 +31,17 @@ func NewGraphVizGraph(cfg GraphVizConfig) (*GraphVizGraph, error) {
 		rankDir = cgraph.LRRank
 	}
 	g.SetRankDir(rankDir)
+
+	if cfg.Layers != "" {
+		g.SetLayers(cfg.Layers)
+	}
+
+	// TODO: enumerate.
+	var layout = "dot"
+	if cfg.Layout != "" {
+		layout = cfg.Layout
+	}
+	g.SetLayout(layout)
 
 	return &GraphVizGraph{
 		cfg:    cfg,
@@ -98,20 +111,33 @@ func (g *GraphVizGraph) AddNode(n *Node) error {
 	}
 
 	label := buildLabelFromNode(n)
+
 	cnode.SetLabel(label)
 	cnode.SetShape(cgraph.CircleShape)
 	cnode.SetStyle(cgraph.FilledNodeStyle)
+	if n.Layer != "" {
+		cnode.SetLayer(n.Layer)
+	}
 
-	switch {
-	case n.IsOperandNode:
-		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultOperandNodeColor))
-		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultOperandNodeColor))
-	case n.Operand == "noop":
-		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultInputNodeColor))
-		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultInputNodeColor))
+	switch n.Kind {
+	case NodeKindOperator:
+		cnode.SetColor(stringOrDefault(g.cfg.OperatorNodeColor, defaultOperandNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.OperatorNodeColor, defaultOperandNodeColor))
+	case NodeKindInput:
+		cnode.SetColor(stringOrDefault(g.cfg.InputNodeColor, defaultInputNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.InputNodeColor, defaultInputNodeColor))
+	case NodeKindBias:
+		cnode.SetColor(stringOrDefault(g.cfg.BiasNodeColor, defaultBiasNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.BiasNodeColor, defaultBiasNodeColor))
+	case NodeKindWeight:
+		cnode.SetColor(stringOrDefault(g.cfg.WeightNodeColor, defaultWeightNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.WeightNodeColor, defaultWeightNodeColor))
+	case NodeKindValue:
+		cnode.SetColor(stringOrDefault(g.cfg.ValueNodeColor, defaultValueNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.ValueNodeColor, defaultValueNodeColor))
 	default:
-		cnode.SetColor(stringOrDefault(g.cfg.NodeColor, defaultValueNodeColor))
-		cnode.SetFillColor(stringOrDefault(g.cfg.NodeColor, defaultValueNodeColor))
+		cnode.SetColor(stringOrDefault(g.cfg.InputNodeColor, defaultValueNodeColor))
+		cnode.SetFillColor(stringOrDefault(g.cfg.InputNodeColor, defaultValueNodeColor))
 	}
 
 	g.setNode(n.ID, cnode)
@@ -193,9 +219,12 @@ func (g *GraphVizGraph) Close() error {
 }
 
 type GraphVizConfig struct {
-	GraphVizOpts         []graphviz.GraphOption
-	NodeColor, EdgeColor string
-	RankDir              cgraph.RankDir
+	GraphVizOpts                                                                      []graphviz.GraphOption
+	InputNodeColor, ValueNodeColor, BiasNodeColor, WeightNodeColor, OperatorNodeColor string
+	EdgeColor                                                                         string
+	RankDir                                                                           cgraph.RankDir
+	Layers                                                                            string
+	Layout                                                                            string
 }
 
 func buildLabelFromNode(n *Node) string {
@@ -203,7 +232,7 @@ func buildLabelFromNode(n *Node) string {
 		return ""
 	}
 
-	if n.IsOperandNode {
+	if n.Kind == NodeKindOperator {
 		return n.Operand
 	}
 

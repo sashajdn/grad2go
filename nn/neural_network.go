@@ -34,11 +34,12 @@ func (n Phase) String() string {
 	}
 }
 
-func NewNeuralNetwork(cfg NeuralNetworkConfig, optimizer Optimizer) *NeuralNetwork {
+func NewNeuralNetwork(cfg NeuralNetworkConfig, optimizer Optimizer, losser Losser) *NeuralNetwork {
 	mlp := NewMLP(cfg.InputShape, cfg.Shape)
 
 	return &NeuralNetwork{
 		Optimizer: optimizer,
+		Losser:    losser,
 		cfg:       cfg,
 		mlp:       mlp,
 		phase:     PhaseStatic,
@@ -50,24 +51,37 @@ type NeuralNetworkConfig struct {
 	Shape      []int
 }
 
-type Optimizer func([]*Value)
+type Optimizer func(input []*Value)
+
+type Losser func(output, expectation []*Value) (*Value, error)
 
 type NeuralNetwork struct {
-	Optimizer      Optimizer
-	cfg            NeuralNetworkConfig
-	mlp            *MLP
-	phase          Phase
-	phaseMu        sync.RWMutex
-	forwardStore   []*Value
-	forwardStoreMu sync.RWMutex
+	Optimizer     Optimizer
+	Losser        Losser
+	cfg           NeuralNetworkConfig
+	mlp           *MLP
+	phase         Phase
+	phaseMu       sync.RWMutex
+	outputStore   []*Value
+	outputStoreMu sync.RWMutex
 }
 
-func (n *NeuralNetwork) Step(input []*Value) (*Value, error) {
+func (n *NeuralNetwork) Step(input, expectation []*Value) (*Value, error) {
 	if err := n.forward(input); err != nil {
 		return nil, fmt.Errorf("forward step failed: %w", err)
 	}
 
-	if err := n.backpropagation(); err != nil {
+	n.outputStoreMu.RLock()
+	output := n.outputStore
+	n.outputStoreMu.RUnlock()
+
+	// TODO: we can check shape beforehand as this is the likely cause of error.
+	loss, err := n.Losser(output, expectation)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform loss function: %w", err)
+	}
+
+	if err := n.backpropagation(loss); err != nil {
 		return nil, fmt.Errorf("backpropagation step failed: %w", err)
 	}
 
@@ -77,10 +91,7 @@ func (n *NeuralNetwork) Step(input []*Value) (*Value, error) {
 
 	n.setPhase(PhaseStatic)
 
-	// TODO: calc.
-	var out = &Value{}
-
-	return out, nil
+	return loss, nil
 }
 
 func (n *NeuralNetwork) Phase() Phase {
@@ -94,9 +105,23 @@ func (n *NeuralNetwork) InputShape() int {
 	return n.cfg.InputShape
 }
 
+func (n *NeuralNetwork) OutputShape() int {
+	if len(n.cfg.Shape) == 0 {
+		return 0
+	}
+
+	return n.cfg.Shape[len(n.cfg.Shape)-1]
+}
+
 func (n *NeuralNetwork) Shape() []int {
 	return n.cfg.Shape
 }
+
+func (n *NeuralNetwork) Layers() int {
+	return len(n.cfg.Shape)
+}
+
+func (n *NeuralNetwork) HiddenLayers() int { return n.Layers() - 1 }
 
 func (n *NeuralNetwork) setPhase(newPhase Phase) {
 	n.phaseMu.Lock()
@@ -116,14 +141,14 @@ func (n *NeuralNetwork) forward(inputs []*Value) error {
 	}
 	n.setPhase(PhaseForward)
 
-	n.forwardStoreMu.Lock()
-	defer n.forwardStoreMu.Unlock()
-	n.forwardStore = n.mlp.Forward(inputs)
+	n.outputStoreMu.Lock()
+	defer n.outputStoreMu.Unlock()
+	n.outputStore = n.mlp.Forward(inputs)
 
 	return nil
 }
 
-func (n *NeuralNetwork) backpropagation() error {
+func (n *NeuralNetwork) backpropagation(lossValue *Value) error {
 	if n.phase != PhaseForward {
 		return fmt.Errorf(
 			"cannot do backward pass, invalid phase %s must be forward: %w",
@@ -133,9 +158,7 @@ func (n *NeuralNetwork) backpropagation() error {
 	}
 	n.setPhase(PhaseBackward)
 
-	for _, v := range n.forwardStore {
-		v.Backward()
-	}
+	lossValue.Backward()
 
 	return nil
 }

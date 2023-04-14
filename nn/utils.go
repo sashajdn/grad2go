@@ -1,6 +1,8 @@
 package nn
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+)
 
 func max(a, b decimal.Decimal) decimal.Decimal {
 	if a.GreaterThanOrEqual(b) {

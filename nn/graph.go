@@ -3,6 +3,8 @@ package nn
 import (
 	"fmt"
 	"grad2go/graph"
+	"strconv"
+	"strings"
 )
 
 func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
@@ -35,7 +37,7 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 		if node.operation.String() != "noop" {
 			// Create "operand" node & inject.
 			cp := deepCopy(workingNode)
-			cp.IsOperandNode = true
+			cp.Kind = graph.NodeKindOperator
 			cp.ID = cp.ID + cp.Operand
 
 			setOfGraphNodes[cp.ID] = cp
@@ -86,14 +88,41 @@ func BuildGraphFromRootValue(g graph.Grapher, root *Value) error {
 	return nil
 }
 
+func BuildGraphVizLayersString(layers int) string {
+	var intermediary = make([]string, layers)
+	for i := 0; i < layers; i++ {
+		intermediary[i] = strconv.Itoa(i)
+	}
+
+	return strings.Join(intermediary, ":")
+}
+
 func marshalValueToNode(v *Value) *graph.Node {
+	var kind graph.NodeKind
+	switch v.Kind() {
+	case KindBias:
+		kind = graph.NodeKindBias
+	case KindWeight:
+		kind = graph.NodeKindWeight
+	case KindInput:
+		kind = graph.NodeKindInput
+	case KindValue:
+		kind = graph.NodeKindValue
+	}
+
+	var layer string
+	if layerValue := v.layer(); layerValue >= 0 {
+		layer = strconv.Itoa(layerValue)
+	}
+
 	return &graph.Node{
-		Data:          v.data,
-		Grad:          v.grad,
-		Operand:       v.operation.String(),
-		ID:            v.ID(),
-		IsOperandNode: false,
-		Label:         v.Label(),
+		Data:    v.data,
+		Grad:    v.grad,
+		Operand: v.operation.String(),
+		ID:      v.ID(),
+		Label:   v.Label(),
+		Kind:    kind,
+		Layer:   layer,
 	}
 }
 
@@ -101,5 +130,5 @@ func deepCopy(n *graph.Node) *graph.Node {
 	d, _ := n.Data.Float64()
 	g, _ := n.Grad.Float64()
 
-	return graph.NewNode(d, g, n.Operand, n.ID, n.IsOperandNode)
+	return graph.NewNode(d, g, n.Operand, n.ID, n.Kind)
 }

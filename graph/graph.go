@@ -9,6 +9,16 @@ import (
 
 var grapher Grapher
 
+type NodeKind int32
+
+const (
+	NodeKindInput NodeKind = iota + 1
+	NodeKindBias
+	NodeKindWeight
+	NodeKindValue
+	NodeKindOperator
+)
+
 func Init(g Grapher) {
 	if g != nil {
 		grapher = g
@@ -16,25 +26,32 @@ func Init(g Grapher) {
 }
 
 // TODO: pass label.
-func NewNode(data, grad float64, operand, id string, isOperandNode bool) *Node {
+func NewNode(data, grad float64, operand, id string, kind NodeKind) *Node {
 	d, g := decimal.NewFromFloat(data), decimal.NewFromFloat(grad)
 
 	return &Node{
-		Data:          d,
-		Grad:          g,
-		IsOperandNode: isOperandNode,
-		Operand:       operand,
-		ID:            id,
+		Data:    d,
+		Grad:    g,
+		Operand: operand,
+		ID:      id,
+		Kind:    kind,
 	}
 }
 
+func NewNodeWithLayer(data, grad float64, operand, id, layer string, kind NodeKind) *Node {
+    n := NewNode(data, grad, operand, id, kind)
+    n.Layer = layer
+    return n
+}
+
 type Node struct {
-	Data          decimal.Decimal
-	Grad          decimal.Decimal
-	IsOperandNode bool
-	Operand       string
-	ID            string
-	Label         string
+	Data    decimal.Decimal
+	Grad    decimal.Decimal
+	Kind    NodeKind
+	Operand string
+	ID      string
+	Label   string
+	Layer   string
 }
 
 type Edge struct {

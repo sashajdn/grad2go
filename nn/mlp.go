@@ -7,7 +7,7 @@ func NewMLP(numberOfInputs int, outputSizes []int) *MLP {
 
 	var layers = make([]*Layer, 0, len(outputSizes))
 	for i := 0; i < len(outputSizes); i++ {
-		layers = append(layers, NewLayer(sizes[i], sizes[i+1]))
+		layers = append(layers, NewLayerWithLabel(sizes[i], sizes[i+1], i))
 	}
 
 	return &MLP{

@@ -117,6 +117,12 @@ func (n *NeuralNetwork) Shape() []int {
 	return n.cfg.Shape
 }
 
+func (n *NeuralNetwork) Layers() int {
+	return len(n.cfg.Shape)
+}
+
+func (n *NeuralNetwork) HiddenLayers() int { return n.Layers() - 1 }
+
 func (n *NeuralNetwork) setPhase(newPhase Phase) {
 	n.phaseMu.Lock()
 	defer n.phaseMu.Unlock()

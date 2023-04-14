@@ -14,7 +14,7 @@ func NewLayer(numberOfInputs, numberOfOutputs int) *Layer {
 }
 
 // TODO: pass context & not label.
-func NewLayerWithLabel(numberOfInputs, numberOfOutputs int, id string) *Layer {
+func NewLayerWithLabel(numberOfInputs, numberOfOutputs int, id int) *Layer {
 	var neurons = make([]*Neuron, 0, numberOfInputs)
 	for i := 0; i < numberOfInputs; i++ {
 		context := &context{
@@ -32,7 +32,7 @@ func NewLayerWithLabel(numberOfInputs, numberOfOutputs int, id string) *Layer {
 
 type Layer struct {
 	neurons []*Neuron
-	id      string
+	id      int
 }
 
 func (l *Layer) Forward(inputs []*Value) []*Value {

@@ -16,6 +16,16 @@ var (
 	one  = decimal.NewFromFloat(1.0)
 )
 
+type Kind int32
+
+const (
+	KindUnknown Kind = iota
+	KindBias
+	KindWeight
+	KindInput
+	KindValue
+)
+
 type Operation int32
 
 const (
@@ -52,13 +62,27 @@ func (o Operation) String() string {
 
 var noop = func() {}
 
-func NewValueWithLabel(value decimal.Decimal, operation Operation, label string, children ...*Value) *Value {
-	v := NewValue(value, operation, children...)
-	v.label = label
-	return v
+func NewValue(
+	value decimal.Decimal,
+	operation Operation,
+	kind Kind,
+	label string,
+	children ...*Value,
+) *Value {
+	context := &context{
+		Label: label,
+	}
+
+	return newValueWithContext(value, operation, kind, context, children...)
 }
 
-func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *Value {
+func newValueWithContext(
+	value decimal.Decimal,
+	operation Operation,
+	kind Kind,
+	context *context,
+	children ...*Value,
+) *Value {
 	var (
 		previousSet []*Value
 		previousMap = make(map[*Value]struct{}, len(children))
@@ -75,11 +99,13 @@ func NewValue(value decimal.Decimal, operation Operation, children ...*Value) *V
 
 	return &Value{
 		data:      value,
+		kind:      kind,
 		operation: operation,
 		previous:  previousSet,
 		backward:  noop,
 		grad:      decimal.NewFromFloat(0.0),
 		id:        time.Now().UnixNano(),
+		context:   context,
 	}
 }
 
@@ -112,16 +138,31 @@ func (v *Value) Backward() {
 }
 
 type Value struct {
+	kind      Kind
 	data      decimal.Decimal
 	operation Operation
 	previous  []*Value
 	backward  func()
 	grad      decimal.Decimal
 	id        int64
-	label     string
+	context   *context
 }
 
-func (v *Value) Label() string { return v.label }
+func (v *Value) Label() string {
+	if v.context == nil {
+		return ""
+	}
+
+	return v.context.String()
+}
+
+func (v *Value) layer() int {
+	if v.context == nil {
+		return -1
+	}
+
+	return v.context.Layer
+}
 
 func (v *Value) String() string {
 	var op = "noop"
@@ -147,7 +188,8 @@ func (v *Value) String() string {
 }
 
 func (v *Value) Add(other *Value) *Value {
-	out := NewValue(v.data.Add(other.data), OperationAdd, v, other)
+	mergedContext := mergeContexts(v.context, other.context)
+	out := newValueWithContext(v.data.Add(other.data), OperationAdd, KindValue, mergedContext, v, other)
 
 	out.backward = func() {
 		v.grad = v.grad.Add(out.grad)
@@ -158,7 +200,8 @@ func (v *Value) Add(other *Value) *Value {
 }
 
 func (v *Value) Sub(other *Value) *Value {
-	out := NewValue(v.data.Sub(other.data), OperationSub, v, other)
+	mergedContext := mergeContexts(v.context, other.context)
+	out := newValueWithContext(v.data.Sub(other.data), OperationSub, KindValue, mergedContext, v, other)
 
 	out.backward = func() {
 		v.grad = v.grad.Add(out.grad)
@@ -169,7 +212,8 @@ func (v *Value) Sub(other *Value) *Value {
 }
 
 func (v *Value) Mul(other *Value) *Value {
-	out := NewValue(v.data.Mul(other.data), OperationMul, v, other)
+	mergedContext := mergeContexts(v.context, other.context)
+	out := newValueWithContext(v.data.Mul(other.data), OperationMul, KindValue, mergedContext, v, other)
 
 	out.backward = func() {
 		// Chain Rule: gradient at out node * differential over (v * other) w.r.t v.
@@ -191,7 +235,8 @@ func (v *Value) Div(other *Value) *Value {
 	}
 
 	inverse := decimal.NewFromFloat(1.0)
-	inverseOther := NewValue(inverse.Div(other.data), OperationDiv, other.previous...)
+	mergedContext := mergeContexts(v.context, other.context)
+	inverseOther := newValueWithContext(inverse.Div(other.data), OperationDiv, KindValue, mergedContext, other.previous...)
 
 	out := v.Mul(inverseOther)
 	out.operation = OperationDiv
@@ -199,7 +244,7 @@ func (v *Value) Div(other *Value) *Value {
 }
 
 func (v *Value) Pow(x decimal.Decimal) *Value {
-	out := NewValue(v.data.Pow(x), OperationPow, v)
+	out := newValueWithContext(v.data.Pow(x), OperationPow, KindValue, v.context, v)
 
 	out.backward = func() {
 		dvdout := x.Mul(v.data.Pow(x.Sub(one)))
@@ -210,7 +255,7 @@ func (v *Value) Pow(x decimal.Decimal) *Value {
 }
 
 func (v *Value) ReLu() *Value {
-	out := NewValue(max(zero, v.data), OperationReLu, v)
+	out := newValueWithContext(max(zero, v.data), OperationReLu, KindValue, v.context, v)
 
 	out.backward = func() {
 		binary := func() decimal.Decimal {
@@ -238,3 +283,4 @@ func (v *Value) ApplyDescent(rate decimal.Decimal) {
 }
 
 func (v *Value) ID() string { return strconv.Itoa(int(v.id)) }
+func (v *Value) Kind() Kind { return v.kind }

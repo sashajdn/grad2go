@@ -75,9 +75,9 @@ func main() {
 
 func neuron(x, w, b float64) func() *nn.Value {
 	return func() *nn.Value {
-		xx := nn.NewValueWithLabel(decimal.NewFromFloat(x), nn.OperationNOOP, "x")
-		ww := nn.NewValueWithLabel(decimal.NewFromFloat(w), nn.OperationNOOP, "w")
-		bb := nn.NewValueWithLabel(decimal.NewFromFloat(b), nn.OperationNOOP, "b")
+		xx := nn.NewValue(decimal.NewFromFloat(x), nn.OperationNOOP, nn.KindInput, "x")
+		ww := nn.NewValue(decimal.NewFromFloat(w), nn.OperationNOOP, nn.KindInput, "w")
+		bb := nn.NewValue(decimal.NewFromFloat(b), nn.OperationNOOP, nn.KindInput, "b")
 
 		out := xx.Mul(ww).Add(bb)
 

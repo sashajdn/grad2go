@@ -39,9 +39,10 @@ func MeanSquaredError(output, expectation []*nn.Value) (*nn.Value, error) {
 		summation = summation.Add(next)
 	}
 
-	divisor := nn.NewValueWithLabel(decimal.NewFromInt(
+	divisor := nn.NewValue(decimal.NewFromInt(
 		int64(len(output))),
-		nn.OperationNOOP,
+		nn.OperationDiv,
+		nn.KindValue,
 		"mse_divisor",
 	)
 

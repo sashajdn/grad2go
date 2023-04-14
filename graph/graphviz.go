@@ -24,6 +24,12 @@ func NewGraphVizGraph(cfg GraphVizConfig) (*GraphVizGraph, error) {
 		return nil, fmt.Errorf("failed to create new graph: %w", err)
 	}
 
+	var rankDir = cfg.RankDir
+	if rankDir == "" {
+		rankDir = cgraph.LRRank
+	}
+	g.SetRankDir(rankDir)
+
 	return &GraphVizGraph{
 		cfg:    cfg,
 		cnodes: make(map[string]*cgraph.Node),
@@ -189,6 +195,7 @@ func (g *GraphVizGraph) Close() error {
 type GraphVizConfig struct {
 	GraphVizOpts         []graphviz.GraphOption
 	NodeColor, EdgeColor string
+	RankDir              cgraph.RankDir
 }
 
 func buildLabelFromNode(n *Node) string {

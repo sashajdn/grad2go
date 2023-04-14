@@ -227,4 +227,14 @@ func (v *Value) ReLu() *Value {
 	return out
 }
 
+func (v *Value) Float64() float64 {
+	f, _ := v.data.Float64()
+	return f
+}
+
+func (v *Value) ApplyDescent(rate decimal.Decimal) {
+	apply := v.data.Mul(rate)
+	v.data = v.data.Add(apply)
+}
+
 func (v *Value) ID() string { return strconv.Itoa(int(v.id)) }

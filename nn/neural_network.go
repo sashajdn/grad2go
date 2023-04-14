@@ -46,14 +46,11 @@ func NewNeuralNetwork(cfg NeuralNetworkConfig, optimizer Optimizer) *NeuralNetwo
 }
 
 type NeuralNetworkConfig struct {
-	InputShape  int
-	Shape       []int
-	WithGrapher bool
+	InputShape int
+	Shape      []int
 }
 
-type Optimizer interface {
-	Optimize([]*Value)
-}
+type Optimizer func([]*Value)
 
 type NeuralNetwork struct {
 	Optimizer      Optimizer
@@ -65,22 +62,25 @@ type NeuralNetwork struct {
 	forwardStoreMu sync.RWMutex
 }
 
-func (n *NeuralNetwork) Step(input []*Value) error {
+func (n *NeuralNetwork) Step(input []*Value) (*Value, error) {
 	if err := n.forward(input); err != nil {
-		return fmt.Errorf("forward step failed: %w", err)
+		return nil, fmt.Errorf("forward step failed: %w", err)
 	}
 
 	if err := n.backpropagation(); err != nil {
-		return fmt.Errorf("backpropagation step failed: %w", err)
+		return nil, fmt.Errorf("backpropagation step failed: %w", err)
 	}
 
 	if err := n.optimize(); err != nil {
-		return fmt.Errorf("optimize step failed: %w", err)
+		return nil, fmt.Errorf("optimize step failed: %w", err)
 	}
 
 	n.setPhase(PhaseStatic)
 
-	return nil
+	// TODO: calc.
+	var out = &Value{}
+
+	return out, nil
 }
 
 func (n *NeuralNetwork) Phase() Phase {
@@ -88,6 +88,14 @@ func (n *NeuralNetwork) Phase() Phase {
 	defer n.phaseMu.RUnlock()
 
 	return n.phase
+}
+
+func (n *NeuralNetwork) InputShape() int {
+	return n.cfg.InputShape
+}
+
+func (n *NeuralNetwork) Shape() []int {
+	return n.cfg.Shape
 }
 
 func (n *NeuralNetwork) setPhase(newPhase Phase) {
@@ -143,7 +151,7 @@ func (n *NeuralNetwork) optimize() error {
 	n.setPhase(PhaseOptimize)
 
 	params := n.mlp.Parameters()
-	n.Optimizer.Optimize(params)
+	n.Optimizer(params)
 
 	return nil
 }

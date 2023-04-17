@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  grafana:
+    build:
+      context: .
+      dockerfile: ./grafana/Dockerfile
+    image: grad2go.monitor.grafana
+    profiles:
+      - monitor
+
+  prometheus:
+    build:
+      context: .
+      dockerfile: ./prometheus/Dockefile
+    image: grad2go.monitor.prometheus
+    profiles:
+      - monitor
